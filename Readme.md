@@ -7,6 +7,12 @@ I use it a lot so maybe it will be useful to someone.
 Simple and stupid, not safe at all (perform Bash eval and recursive
 calls), but it works.
 
+## Dependencies
+
+- GNU grep
+- GNU find
+- fzf
+
 ## Installation
 
 (Assuming ~/.local/bin is in your path):
