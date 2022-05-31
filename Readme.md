@@ -16,5 +16,4 @@ OPTIONS:
    -l                List all existing tags
    -a                List all tagged files
    -n                List all files not tagged
-EOF
 ```
