@@ -11,7 +11,7 @@ calls), but it works.
 
 (Assuming ~/.local/bin is in your path):
 
-```
+```bash
 cd tagger
 cp tagger.sh ~/.local/bin/
 chmod +x ~/.local/bin/tagger.sh
@@ -22,11 +22,11 @@ chmod +x ~/.local/bin/tagger.sh
 The files should be nammed with the tags at the beginning of the file,
 enclosed in parentheses:
 
-```
+```bash
 (tag1,tag2) foo
 ```
 
-```
+```bash
 OPTIONS:
    -f Tag1 Tag2 TagN Return matching files
    -p Tag1 Tag2 TagN Return matching files with the path
