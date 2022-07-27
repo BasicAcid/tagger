@@ -10,7 +10,7 @@ The filenames should obey the following format:
 (tag1,tag2,tag3) file.txt
 
 OPTIONS:
-   -f Tag1 Tag2 TagN Return matching files
+   -f Tag1 Tag2 TagN Return matching files (name only)
    -p Tag1 Tag2 TagN Return matching files with the path
    -x Tag1 Tag2 TagN Same as -p but pass the result to fzf
    -l                List all existing tags
