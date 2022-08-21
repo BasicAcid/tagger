@@ -43,23 +43,6 @@ list_not_tagged_fullpath () {
     find . -name '*' -type f -not -path "*/.git/*" -print | grep -v '\/(..*)' --exclude-dir='.git'
 }
 
-# Rename a tag
-
-# Add tag to file
-
-# Add tag to files in directory
-# add_tag_to_dir () {
-#     read test
-# }
-
-# add_tag_to_dir
-
-# Delete a tag
-
-# Delete all files with a tag
-
-# Copy all files with a tag to a destination
-
 # find . -name '*' -type f -printf "%f\n" | grep '^(.*tag.*)'
 find_by_tags () {
     for var in $@
