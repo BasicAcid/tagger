@@ -1,19 +1,51 @@
 # Tagger
 
-A script that search files based on tags enclosed inside the filename.
+    A script that search files based on tags enclosed inside the filename.
 
-I use it a lot so maybe it will be useful to someone.
+    I use it a lot so maybe it will be useful to someone.
 
-Simple and stupid, not safe at all (perform Bash eval and recursive
-calls), but it works.
 
-## Dependencies
+There are three versions in this repo:
+
+- *tagger.sh*
+
+    Simple and stupid, not safe at all (perform Bash eval and recursive
+    calls), but it works.
+
+- *tagger.hs*
+
+    A version in Haskell I wrote mostly for fun.
+
+    It still call grep behind the scene, but parse tags with Parsec.
+
+    It's a bit slow (compared to C) and hard to optimize. I did find a
+    way to make it kind of portable, but the compilation still require
+    stack and undreds of MB, so I wasn't happy with it.
+
+- *tagger.c*
+
+    C version, simple, fast...
+
+    Just set the _BASEDIR_ variable and run:
+    ```
+    make build
+    make run
+    ```
+
+    The default regex use this file format:
+    ```
+    +tag1,tag2+@filename
+    ```
+
+## tagger.sh Readme (old)
+
+### Dependencies
 
 - GNU grep
 - GNU find
 - fzf
 
-## Installation
+### Installation
 
 (Assuming ~/.local/bin is in your path):
 
@@ -23,7 +55,7 @@ cp tagger.sh ~/.local/bin/
 chmod +x ~/.local/bin/tagger.sh
 ```
 
-## Usage
+### Usage
 
 The files should be nammed with the tags at the beginning of the file,
 enclosed in parentheses:
@@ -42,7 +74,7 @@ OPTIONS:
    -n                List all files not tagged
 ```
 
-## Rationale
+### Rationale
 
     - Why not use an index file?
 
@@ -65,5 +97,3 @@ OPTIONS:
         https://github.com/novoid/filetags
 
         https://github.com/mdom/squaretag
-
-## Demo
