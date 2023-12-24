@@ -17,9 +17,9 @@ There are three versions in this repo:
 
     - use an environment variable:
 
-    ```
-    export TAGGER_PATH="/home/user/your/documents"
-    ```
+     ```
+     export TAGGER_PATH="/home/user/your/documents"
+     ```
 
     - set the variable directly inside the program, to do so search
       for this line inside main:
