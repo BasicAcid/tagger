@@ -16,6 +16,7 @@ There are three versions in this repo:
     To use it you need to set the default search path, you can either:
 
     - use an environment variable:
+
     ```
     export TAGGER_PATH="/home/user/your/documents"
     ```
