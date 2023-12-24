@@ -5,19 +5,6 @@
 #include <string.h>
 #include <getopt.h>
 
-char *BASEDIR = "YOUR_PATH_HERE";
-
-// To add to main instead:
-// Get the path from an env variable.
-/* char *BASEDIR; */
-
-/* BASEDIR = getenv("TAGGER_SPATH"); */
-
-/* if(BASEDIR == NULL) { */
-/*     fprintf(stderr, ""); */
-/*     exit(EXIT_FAILURE); */
-/* } */
-
 // Keep this global?
 char *BASEREGEX = "+.*+@.*";
 int  MAXTAGNB = 30;
@@ -191,7 +178,7 @@ struct TagNode
 }
 
 void
-list_tags(regex_t regex, struct FileTuple *matches)
+list_tags(regex_t regex, struct FileTuple *matches, const char *BASEDIR)
 {
     int match_count = 0;
     search_files(BASEDIR, &regex, &matches, &match_count);
@@ -227,6 +214,15 @@ main(int argc, char *argv[])
         exit(1);
     }
 
+    // Either use an environment variable, or set the value here (do not forget to comment the second line):
+    // const char *BASEDIR = "/your/path/here";
+    const char *BASEDIR = getenv("TAGGER_PATH");
+
+    if(BASEDIR == NULL) {
+        fprintf(stderr, "Please set the TAGGER_PATH environment variable, or use an hardcoded value like explained above.");
+        exit(EXIT_FAILURE);
+    }
+
     // Magic number!
     struct FileTuple *matches = (struct FileTuple *)malloc(sizeof(struct FileTuple) * 10000);
 
@@ -250,7 +246,7 @@ main(int argc, char *argv[])
             logical_and = 0; // Logical OR.
             break;
         case 'l':
-            list_tags(regex, matches);
+            list_tags(regex, matches, BASEDIR);
             return 0;
             break;
         case 'h':
@@ -264,7 +260,6 @@ main(int argc, char *argv[])
             exit(1);
         }
     }
-
 
     // Process tags from CLI.
     char tags_to_find[argc - optind][MAXTAGNB];
