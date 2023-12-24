@@ -12,7 +12,7 @@ CFLAGS := -O2 \
           -z noexecstack \
           -Wconversion
 
-SRC := main.c
+SRC := tagger.c
 TARGET := bin/tagger
 INSTALL_DIR := ~/.local/bin
 
