@@ -13,14 +13,28 @@ There are three versions in this repo:
 
     This is the default version.
 
-    Just set the _BASEDIR_ variable and run:
+    To use it you need to set the default search path, you can either:
+
+    - use an environment variable:
     ```
+    export TAGGER_PATH="/home/user/your/documents"
+    ```
+
+    - set the variable directly inside the program, to do so search
+      for this line inside main:
+
+      ```C
+      const char *BASEDIR = "/your/path/here";
+      ```
+
+    Compilation and installation (default path is ~/.local/bin/):
+    ```bash
     make build
     make run
     ```
 
     The default regex use this file format:
-    ```
+    ```bash
     +tag1,tag2+@filename
     ```
 
