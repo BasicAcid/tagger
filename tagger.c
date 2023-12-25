@@ -223,8 +223,8 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // Magic number!
-    struct FileTuple *matches = (struct FileTuple *)malloc(sizeof(struct FileTuple) * 10000);
+    long unsigned int max_matches = 10000;
+    struct FileTuple *matches = (struct FileTuple *)malloc(sizeof(struct FileTuple) * max_matches);
 
     // Default is logical AND.
     int logical_and = 1;
