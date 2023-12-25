@@ -18,7 +18,10 @@ INSTALL_DIR := ~/.local/bin
 
 .PHONY: build deploy
 
-build: $(TARGET)
+build: create_dir $(TARGET)
+
+create_dir:
+	mkdir -p bin
 
 $(TARGET): $(SRC)
 	$(CC) $(CFLAGS) -o $@ $^
