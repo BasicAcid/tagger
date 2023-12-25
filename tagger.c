@@ -5,9 +5,8 @@
 #include <string.h>
 #include <getopt.h>
 
-// Keep this global?
-char *BASEREGEX = "+.*+@.*";
-int  MAXTAGNB = 30;
+const char *BASEREGEX = "+.*+@.*";
+const int MAXTAGNB = 30;
 
 struct FileTuple
 {
@@ -60,25 +59,34 @@ remove_duplicates_llist(struct TagNode *head)
     }
 }
 
-
 void
 extract_tags(const char *filename, char *tags)
 {
     const char *start = strchr(filename, '+');
-    const char *end = strchr(start + 1, '+');
 
-    if(start && end)
+    if(start)
     {
-        size_t tag_len = (size_t)(end - start - 1);
-        strncpy(tags, start + 1, tag_len);
-        tags[tag_len] = '\0'; // Null-termination.
+        const char *end = strchr(start + 1, '+');
+
+        if(end)
+        {
+            size_t tag_len = (size_t)(end - start - 1);
+            strncpy(tags, start + 1, tag_len);
+            tags[tag_len] = '\0'; // Null-termination.
+        }
+        else
+        {
+            fprintf(stderr, "Error (extract_tags): 'end' is a NULL pointer.\n");
+            exit(EXIT_FAILURE);
+        }
     }
     else
     {
-        fprintf(stderr, "Error (extract_tags): 'start' or 'end' is a NULL pointer.\n");
+        fprintf(stderr, "Error (extract_tags): 'start' is a NULL pointer.\n");
         exit(EXIT_FAILURE);
     }
 }
+
 
 void
 search_files(const char *path, regex_t *regex, struct FileTuple **matches, int *match_count)
