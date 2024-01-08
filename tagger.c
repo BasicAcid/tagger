@@ -170,7 +170,7 @@ find_by_tags(int num_tags, char tags[][MAXTAGNB], int match_count, struct FileTu
 struct TagNode
 *create_tag_node(const char *tag)
 {
-    struct TagNode *new_node = (struct TagNode*)malloc(sizeof(struct TagNode));
+    struct TagNode *new_node = malloc(sizeof(struct TagNode));
 
     if(new_node == NULL)
     {
@@ -232,7 +232,7 @@ main(int argc, char *argv[])
     }
 
     long unsigned int max_matches = 10000;
-    struct FileTuple *matches = (struct FileTuple *)malloc(sizeof(struct FileTuple) * max_matches);
+    struct FileTuple *matches = malloc(sizeof(struct FileTuple) * max_matches);
 
     // Default is logical AND.
     int logical_and = 1;
