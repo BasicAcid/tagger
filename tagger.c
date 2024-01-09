@@ -5,6 +5,11 @@
 #include <string.h>
 #include <getopt.h>
 
+// TODO: Exclude tags.
+// TODO: Add a fzf like interface?
+// TODO: Copy or move files based on tags.
+// TODO: Remove a tag from a list of files.
+
 const char *BASEREGEX = "+.*+@.*";
 const int MAXTAGNB = 30;
 
@@ -34,6 +39,9 @@ print_llist(struct TagNode *head)
     }
 }
 
+// TODO
+// This is bad because it will grow exponentially.
+// There must be a better way.
 void
 remove_duplicates_llist(struct TagNode *head)
 {
@@ -134,7 +142,8 @@ find_by_tags(int num_tags, char tags[][MAXTAGNB], int match_count, struct FileTu
 {
     for(int i = 0; i < match_count; i++)
     {
-        int contains_all_tags = logical_and; // Set to 1 for logical AND, 0 for logical OR.
+        // Set to 1 for logical AND, 0 for logical OR.
+        int contains_all_tags = logical_and;
 
         for(int j = 0; j < num_tags; j++)
         {
@@ -164,7 +173,6 @@ find_by_tags(int num_tags, char tags[][MAXTAGNB], int match_count, struct FileTu
         }
     }
 }
-
 
 // Create a new node and initialize it with a tag.
 struct TagNode
@@ -211,7 +219,6 @@ list_tags(regex_t regex, struct FileTuple *matches, const char *BASEDIR)
 }
 
 
-
 int
 main(int argc, char *argv[])
 {
@@ -234,15 +241,17 @@ main(int argc, char *argv[])
     long unsigned int max_matches = 10000;
     struct FileTuple *matches = malloc(sizeof(struct FileTuple) * max_matches);
 
+    // TODO: use an enum.
     // Default is logical AND.
     int logical_and = 1;
 
+    // TODO: move all this part to a function.
     int opt;
 
     struct option long_options[] = {
         {"or", no_argument, 0, 'o'},
         {"list", no_argument, 0, 'l'},
-        {"help", no_argument, 0, 'h'},  // Change 'required_argument' to 'no_argument'
+        {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
     };
 
@@ -287,6 +296,7 @@ main(int argc, char *argv[])
     }
 
     int match_count = 0;
+
     search_files(BASEDIR, &regex, &matches, &match_count);
 
     find_by_tags(num_tags_to_find, tags_to_find, match_count, matches, logical_and);
