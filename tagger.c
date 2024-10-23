@@ -356,6 +356,20 @@ rename_file_remove_tag(const char* old_path, const char* new_path)
     return 0;
 }
 
+int
+join_path_safely(char *dest, size_t dest_size, const char *dir, const char *file)
+{
+    int result = snprintf(dest, dest_size, "%s/%s", dir, file);
+
+    // Check if truncation occurred.
+    if (result < 0 || (size_t)result >= dest_size) {
+        fprintf(stderr, "Path too long: %s/%s\n", dir, file);
+        return -1;
+    }
+
+    return 0;
+}
+
 void
 remove_tag_from_files(const char* tag_to_remove, regex_t *regex, struct FileTuple *matches, const char* BASEDIR)
 {
@@ -373,8 +387,20 @@ remove_tag_from_files(const char* tag_to_remove, regex_t *regex, struct FileTupl
             char old_path[MAX_PATH_LENGTH];
             char new_path[MAX_PATH_LENGTH];
 
-            snprintf(old_path, sizeof(old_path), "%s/%s", matches[i].path, matches[i].filename);
-            snprintf(new_path, sizeof(new_path), "%s/%s", matches[i].path, new_filename);
+            // Use safe path joining.
+            if (join_path_safely(old_path, sizeof(old_path),
+                               matches[i].path, matches[i].filename) != 0) {
+                free(new_filename);
+                errors++;
+                continue;
+            }
+
+            if (join_path_safely(new_path, sizeof(new_path),
+                               matches[i].path, new_filename) != 0) {
+                free(new_filename);
+                errors++;
+                continue;
+            }
 
             if (rename_file_remove_tag(old_path, new_path) == 0) {
                 printf("Renamed: %s -> %s\n", matches[i].filename, new_filename);
