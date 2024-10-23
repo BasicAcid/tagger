@@ -5,61 +5,145 @@
 #include <string.h>
 #include <getopt.h>
 
-// TODO: Exclude tags.
-// TODO: Add a fzf like interface?
-// TODO: Copy or move files based on tags.
-// TODO: Remove a tag from a list of files.
-
 #define MAX_PATH_LENGTH 2048
+#define MAX_FILENAME_LENGTH 256
+#define MAX_TAGS_LENGTH 2048
+#define INITIAL_TAG_CAPACITY 32
 
 const char *BASEREGEX = "+.*+@.*";
 const int MAXTAGNB = 30;
 
 struct FileTuple {
-    char path[2048];
-    char filename[256];
-    char tags[2048]; // Max combined length of tags.
+    char path[MAX_PATH_LENGTH];
+    char filename[MAX_FILENAME_LENGTH];
+    char tags[MAX_TAGS_LENGTH];
 };
 
-// Linked list to store tags.
-struct TagNode {
-    char tag[40];
-    struct TagNode *next;
+struct TagSet {
+    char **tags;
+    size_t count;
+    size_t capacity;
 };
+
+// Function prototypes for TagSet operations.
+struct TagSet* create_tag_set(size_t initial_capacity);
+void destroy_tag_set(struct TagSet *set);
+void add_tag(struct TagSet *set, const char *tag);
+void print_tag_set(const struct TagSet *set);
+
+// Function prototypes for main operations.
+void search_files(const char *path, regex_t *regex, struct FileTuple **matches, int *match_count);
+void extract_tags(const char *filename, char *tags);
+void find_by_tags(int num_tags, char tags[][MAXTAGNB], int match_count, struct FileTuple *matches, int logical_and);
+void list_tags(regex_t regex, struct FileTuple *matches, const char *BASEDIR);
+
+struct TagSet*
+create_tag_set(size_t initial_capacity)
+{
+    struct TagSet *set = malloc(sizeof(struct TagSet));
+    if (!set) {
+        fprintf(stderr, "Failed to allocate TagSet\n");
+        exit(EXIT_FAILURE);
+    }
+
+    set->tags = malloc(sizeof(char*) * initial_capacity);
+    if (!set->tags) {
+        free(set);
+        fprintf(stderr, "Failed to allocate tags array\n");
+        exit(EXIT_FAILURE);
+    }
+
+    set->count = 0;
+    set->capacity = initial_capacity;
+    return set;
+}
 
 void
-print_llist(struct TagNode *head)
+destroy_tag_set(struct TagSet *set)
 {
-    struct TagNode *current = head;
+    if (!set) return;
 
-    while(current != NULL) {
-        printf("%s\n", current->tag);
-        current = current->next;
+    for (size_t i = 0; i < set->count; i++) {
+        free(set->tags[i]);
+    }
+    free(set->tags);
+    free(set);
+}
+
+void
+add_tag(struct TagSet *set, const char *tag)
+{
+    // Check for duplicates
+    for (size_t i = 0; i < set->count; i++) {
+        if (strcmp(set->tags[i], tag) == 0) {
+            return;  // Tag already exists
+        }
+    }
+
+    // Resize if needed
+    if (set->count >= set->capacity) {
+        size_t new_capacity = set->capacity * 2;
+        char **new_tags = realloc(set->tags, sizeof(char*) * new_capacity);
+        if (!new_tags) {
+            fprintf(stderr, "Failed to resize tags array\n");
+            return;
+        }
+
+        set->tags = new_tags;
+        set->capacity = new_capacity;
+    }
+
+    // Add new tag
+    set->tags[set->count] = strdup(tag);
+    if (!set->tags[set->count]) {
+        fprintf(stderr, "Failed to duplicate tag string\n");
+        return;
+    }
+    set->count++;
+}
+
+void
+print_tag_set(const struct TagSet *set)
+{
+    for (size_t i = 0; i < set->count; i++) {
+        printf("%s\n", set->tags[i]);
     }
 }
 
-// TODO
-// This is bad because it will grow exponentially.
-// There must be a better way.
 void
-remove_duplicates_llist(struct TagNode *head)
+list_tags(regex_t regex, struct FileTuple *matches, const char *BASEDIR)
 {
-    struct TagNode *current = head;
+    int match_count = 0;
+    // Fix the pointer type issue.
+    struct FileTuple **matches_ptr = &matches;
+    search_files(BASEDIR, &regex, matches_ptr, &match_count);
 
-    while(current != NULL) {
-        struct TagNode *runner = current;
-        while(runner->next != NULL) {
-            if(strcmp(current->tag, runner->next->tag) == 0) {
-                struct TagNode *temp = runner->next;
-                runner->next = runner->next->next;
-                free(temp);
+    struct TagSet *tag_set = create_tag_set(32);  // Start with space for 32 tags.
+
+    for (int i = 0; i < match_count; i++) {
+        char tags_copy[2048];
+        strncpy(tags_copy, matches[i].tags, sizeof(tags_copy) - 1);
+        tags_copy[sizeof(tags_copy) - 1] = '\0';
+
+        char *token = strtok(tags_copy, ",");
+        while (token != NULL) {
+            // Remove leading/trailing whitespace.
+            while (*token == ' ') token++;
+            char *end = token + strlen(token) - 1;
+            while (end > token && *end == ' ') {
+                *end = '\0';
+                end--;
             }
-            else {
-                runner = runner->next;
+
+            if (*token) {  // Only add non-empty tags.
+                add_tag(tag_set, token);
             }
+            token = strtok(NULL, ",");
         }
-        current = current->next;
     }
+
+    print_tag_set(tag_set);
+    destroy_tag_set(tag_set);
 }
 
 void
@@ -85,7 +169,6 @@ extract_tags(const char *filename, char *tags)
         exit(EXIT_FAILURE);
     }
 }
-
 
 void
 search_files(const char *path, regex_t *regex, struct FileTuple **matches, int *match_count)
@@ -155,48 +238,6 @@ find_by_tags(int num_tags, char tags[][MAXTAGNB], int match_count, struct FileTu
         }
     }
 }
-
-// Create a new node and initialize it with a tag.
-struct TagNode
-*create_tag_node(const char *tag)
-{
-    struct TagNode *new_node = malloc(sizeof(struct TagNode));
-
-    if(new_node == NULL) {
-        exit(1);
-    }
-
-    strncpy(new_node->tag, tag, sizeof(new_node->tag));
-    new_node->tag[sizeof(new_node->tag) - 1] = '\0'; // Ensure null-termination.
-
-    new_node->next = NULL;
-
-    return new_node;
-}
-
-void
-list_tags(regex_t regex, struct FileTuple *matches, const char *BASEDIR)
-{
-    int match_count = 0;
-    search_files(BASEDIR, &regex, &matches, &match_count);
-
-    struct TagNode *tag_list = NULL;
-
-    for(int i = 0; i < match_count; i++) {
-        char *token = strtok(matches[i].tags, ",");
-        while(token != NULL) {
-            struct TagNode* newNode = create_tag_node(token);
-            newNode->next = tag_list;
-            tag_list = newNode;
-            token = strtok(NULL, ",");
-        }
-    }
-
-    remove_duplicates_llist(tag_list);
-
-    print_llist(tag_list);
-}
-
 
 int
 main(int argc, char *argv[])
