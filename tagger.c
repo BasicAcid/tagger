@@ -303,7 +303,8 @@ create_new_filename(const char* original_filename, const char* tag_to_remove)
             }
             strcat(new_tags, tag);
             is_first = 0;
-        } else {
+        }
+        else {
             found_tag = 1;
         }
         tag = strtok(NULL, ",");
@@ -318,16 +319,27 @@ create_new_filename(const char* original_filename, const char* tag_to_remove)
 
     // Reconstruct the filename.
     if (strlen(new_tags) > 0) {
-        // Still has other tags
+        // Still has other tags.
         snprintf(new_filename, MAX_FILENAME_LENGTH, "%.*s+%s+%s",
                  (int)(start - original_filename), original_filename,
                  new_tags,
                  end + 1);
-    } else {
-        // No tags left, remove the tag wrapper completely.
-        snprintf(new_filename, MAX_FILENAME_LENGTH, "%.*s%s",
-                 (int)(start - original_filename), original_filename,
-                 end + 1);
+    }
+    else {
+        // No tags left, remove the tag wrapper and '@' completely.
+        const char* filename_start = strchr(end + 1, '@');
+        if (filename_start) {
+            filename_start++; // Skip the '@'
+            snprintf(new_filename, MAX_FILENAME_LENGTH, "%.*s%s",
+                     (int)(start - original_filename), original_filename,
+                     filename_start);
+        }
+        else {
+            // Fallback if '@' is not found (shouldn't happen with valid filenames).
+            snprintf(new_filename, MAX_FILENAME_LENGTH, "%.*s%s",
+                     (int)(start - original_filename), original_filename,
+                     end + 1);
+        }
     }
 
     free(tags);
@@ -389,14 +401,14 @@ remove_tag_from_files(const char* tag_to_remove, regex_t *regex, struct FileTupl
 
             // Use safe path joining.
             if (join_path_safely(old_path, sizeof(old_path),
-                               matches[i].path, matches[i].filename) != 0) {
+                                 matches[i].path, matches[i].filename) != 0) {
                 free(new_filename);
                 errors++;
                 continue;
             }
 
             if (join_path_safely(new_path, sizeof(new_path),
-                               matches[i].path, new_filename) != 0) {
+                                 matches[i].path, new_filename) != 0) {
                 free(new_filename);
                 errors++;
                 continue;
