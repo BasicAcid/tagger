@@ -10,19 +10,19 @@
 // TODO: Copy or move files based on tags.
 // TODO: Remove a tag from a list of files.
 
+#define MAX_PATH_LENGTH 2048
+
 const char *BASEREGEX = "+.*+@.*";
 const int MAXTAGNB = 30;
 
-struct FileTuple
-{
+struct FileTuple {
     char path[2048];
     char filename[256];
     char tags[2048]; // Max combined length of tags.
 };
 
 // Linked list to store tags.
-struct TagNode
-{
+struct TagNode {
     char tag[40];
     struct TagNode *next;
 };
@@ -32,8 +32,7 @@ print_llist(struct TagNode *head)
 {
     struct TagNode *current = head;
 
-    while(current != NULL)
-    {
+    while(current != NULL) {
         printf("%s\n", current->tag);
         current = current->next;
     }
@@ -47,19 +46,15 @@ remove_duplicates_llist(struct TagNode *head)
 {
     struct TagNode *current = head;
 
-    while(current != NULL)
-    {
+    while(current != NULL) {
         struct TagNode *runner = current;
-        while(runner->next != NULL)
-        {
-            if(strcmp(current->tag, runner->next->tag) == 0)
-            {
+        while(runner->next != NULL) {
+            if(strcmp(current->tag, runner->next->tag) == 0) {
                 struct TagNode *temp = runner->next;
                 runner->next = runner->next->next;
                 free(temp);
             }
-            else
-            {
+            else {
                 runner = runner->next;
             }
         }
@@ -72,24 +67,20 @@ extract_tags(const char *filename, char *tags)
 {
     const char *start = strchr(filename, '+');
 
-    if(start)
-    {
+    if(start) {
         const char *end = strchr(start + 1, '+');
 
-        if(end)
-        {
+        if(end) {
             size_t tag_len = (size_t)(end - start - 1);
             strncpy(tags, start + 1, tag_len);
             tags[tag_len] = '\0'; // Null-termination.
         }
-        else
-        {
+        else {
             fprintf(stderr, "Error (extract_tags): 'end' is a NULL pointer.\n");
             exit(EXIT_FAILURE);
         }
     }
-    else
-    {
+    else {
         fprintf(stderr, "Error (extract_tags): 'start' is a NULL pointer.\n");
         exit(EXIT_FAILURE);
     }
@@ -102,27 +93,25 @@ search_files(const char *path, regex_t *regex, struct FileTuple **matches, int *
     struct dirent *entry;
     DIR *dp = opendir(path);
 
-    if(dp == NULL)
-    {
+    if(dp == NULL) {
         perror("opendir");
         return;
     }
 
-    while((entry = readdir(dp)) != NULL)
-    {
-        if(entry->d_type == DT_DIR)
-        {
-            if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
-            {
-                char new_path[2048];
-                snprintf(new_path, sizeof(new_path), "%s/%s", path, entry->d_name);
+    while((entry = readdir(dp)) != NULL) {
+        if(entry->d_type == DT_DIR) {
+            if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+                char new_path[MAX_PATH_LENGTH];
+                int result = snprintf(new_path, MAX_PATH_LENGTH, "%s/%s", path, entry->d_name);
+                if (result >= MAX_PATH_LENGTH || result < 0) {
+                    fprintf(stderr, "Path too long or encoding error\n");
+                    continue;
+                }
                 search_files(new_path, regex, matches, match_count); // Recursive call for subdirs.
             }
         }
-        else if(entry->d_type == DT_REG)
-        {
-            if(regexec(regex, entry->d_name, 0, NULL, 0) == 0)
-            {
+        else if(entry->d_type == DT_REG) {
+            if(regexec(regex, entry->d_name, 0, NULL, 0) == 0) {
                 struct FileTuple match;
                 // subtract 1 from the destination size to ensure that there is room for the null-terminator in the destination buffer.
                 strncpy(match.path, path, sizeof(match.path) - 1);
@@ -140,35 +129,28 @@ search_files(const char *path, regex_t *regex, struct FileTuple **matches, int *
 void
 find_by_tags(int num_tags, char tags[][MAXTAGNB], int match_count, struct FileTuple *matches, int logical_and)
 {
-    for(int i = 0; i < match_count; i++)
-    {
+    for(int i = 0; i < match_count; i++) {
         // Set to 1 for logical AND, 0 for logical OR.
         int contains_all_tags = logical_and;
 
-        for(int j = 0; j < num_tags; j++)
-        {
-            if(strstr(matches[i].tags, tags[j]) == NULL)
-            {
+        for(int j = 0; j < num_tags; j++) {
+            if(strstr(matches[i].tags, tags[j]) == NULL) {
                 // If a tag is not found in the file's tags, set the flag to 0 for logical OR.
-                if(logical_and)
-                {
+                if(logical_and) {
                     contains_all_tags = 0;
                     break; // No need to check further for logical AND.
                 }
             }
-            else
-            {
+            else {
                 // If a tag is found in the file's tags, set the flag to 1 for logical OR.
-                if(!logical_and)
-                {
+                if(!logical_and) {
                     contains_all_tags = 1;
                     break; // No need to check further for logical OR.
                 }
             }
         }
 
-        if(contains_all_tags)
-        {
+        if(contains_all_tags) {
             printf("%s/%s\n", matches[i].path, matches[i].filename);
         }
     }
@@ -180,8 +162,7 @@ struct TagNode
 {
     struct TagNode *new_node = malloc(sizeof(struct TagNode));
 
-    if(new_node == NULL)
-    {
+    if(new_node == NULL) {
         exit(1);
     }
 
@@ -201,11 +182,9 @@ list_tags(regex_t regex, struct FileTuple *matches, const char *BASEDIR)
 
     struct TagNode *tag_list = NULL;
 
-    for(int i = 0; i < match_count; i++)
-    {
+    for(int i = 0; i < match_count; i++) {
         char *token = strtok(matches[i].tags, ",");
-        while(token != NULL)
-        {
+        while(token != NULL) {
             struct TagNode* newNode = create_tag_node(token);
             newNode->next = tag_list;
             tag_list = newNode;
@@ -223,8 +202,7 @@ int
 main(int argc, char *argv[])
 {
     regex_t regex;
-    if(regcomp(&regex, BASEREGEX, 0) != 0)
-    {
+    if(regcomp(&regex, BASEREGEX, 0) != 0) {
         fprintf(stderr, "Failed to compile regex\n");
         exit(1);
     }
@@ -255,10 +233,8 @@ main(int argc, char *argv[])
         {0, 0, 0, 0}
     };
 
-    while ((opt = getopt_long(argc, argv, "olh", long_options, NULL)) != -1)
-    {
-        switch (opt)
-        {
+    while ((opt = getopt_long(argc, argv, "olh", long_options, NULL)) != -1) {
+        switch (opt) {
         case 'o':
             logical_and = 0; // Logical OR.
             break;
@@ -281,15 +257,12 @@ main(int argc, char *argv[])
     // Process tags from CLI.
     char tags_to_find[argc - optind][MAXTAGNB];
     int num_tags_to_find = 0;
-    for(int i = optind; i < argc; i++)
-    {
-        if(num_tags_to_find < MAXTAGNB)
-        {
+    for(int i = optind; i < argc; i++) {
+        if(num_tags_to_find < MAXTAGNB) {
             strncpy(tags_to_find[num_tags_to_find], argv[i], sizeof(tags_to_find[num_tags_to_find]));
             num_tags_to_find++;
         }
-        else
-        {
+        else {
             fprintf(stderr, "Too many tags specified.\n");
             exit(1);
         }
