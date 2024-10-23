@@ -4,6 +4,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <getopt.h>
+#include <unistd.h>
 
 #define MAX_PATH_LENGTH 2048
 #define MAX_FILENAME_LENGTH 256
@@ -36,6 +37,10 @@ void search_files(const char *path, regex_t *regex, struct FileTuple **matches, 
 void extract_tags(const char *filename, char *tags);
 void find_by_tags(int num_tags, char tags[][MAXTAGNB], int match_count, struct FileTuple *matches, int logical_and);
 void list_tags(regex_t regex, struct FileTuple *matches, const char *BASEDIR);
+
+char* create_new_filename(const char* original_filename, const char* tag_to_remove);
+int rename_file_remove_tag(const char* old_path, const char* new_path);
+void remove_tag_from_files(const char* tag_to_remove, regex_t *regex, struct FileTuple *matches, const char* BASEDIR);
 
 struct TagSet*
 create_tag_set(size_t initial_capacity)
@@ -73,14 +78,14 @@ destroy_tag_set(struct TagSet *set)
 void
 add_tag(struct TagSet *set, const char *tag)
 {
-    // Check for duplicates
+    // Check for duplicates.
     for (size_t i = 0; i < set->count; i++) {
         if (strcmp(set->tags[i], tag) == 0) {
             return;  // Tag already exists
         }
     }
 
-    // Resize if needed
+    // Resize if needed.
     if (set->count >= set->capacity) {
         size_t new_capacity = set->capacity * 2;
         char **new_tags = realloc(set->tags, sizeof(char*) * new_capacity);
@@ -93,7 +98,7 @@ add_tag(struct TagSet *set, const char *tag)
         set->capacity = new_capacity;
     }
 
-    // Add new tag
+    // Add new tag.
     set->tags[set->count] = strdup(tag);
     if (!set->tags[set->count]) {
         fprintf(stderr, "Failed to duplicate tag string\n");
@@ -239,6 +244,157 @@ find_by_tags(int num_tags, char tags[][MAXTAGNB], int match_count, struct FileTu
     }
 }
 
+char*
+create_new_filename(const char* original_filename, const char* tag_to_remove)
+{
+    char* new_filename = malloc(MAX_FILENAME_LENGTH);
+    if (!new_filename) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // First, find the tags section.
+    const char* start = strchr(original_filename, '+');
+    const char* end = strrchr(original_filename, '+');
+
+    if (!start || !end || start == end) {
+        free(new_filename);
+        return NULL;
+    }
+
+    // Extract the tags.
+    size_t tags_len = (size_t)(end - start - 1);
+    char* tags = malloc(tags_len + 1);
+    if (!tags) {
+        free(new_filename);
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    strncpy(tags, start + 1, tags_len);
+    tags[tags_len] = '\0';
+
+    // Split tags and rebuild without the removed tag.
+    char* new_tags = malloc(tags_len + 1);
+    if (!new_tags) {
+        free(tags);
+        free(new_filename);
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    new_tags[0] = '\0';
+
+    char* tag = strtok(tags, ",");
+    int found_tag = 0;
+    int is_first = 1;
+
+    while (tag != NULL) {
+        // Remove leading/trailing spaces.
+        while (*tag == ' ') tag++;
+        char* tag_end = tag + strlen(tag) - 1;
+        while (tag_end > tag && *tag_end == ' ') {
+            *tag_end = '\0';
+            tag_end--;
+        }
+
+        if (strcmp(tag, tag_to_remove) != 0) {
+            if (!is_first) {
+                strcat(new_tags, ",");
+            }
+            strcat(new_tags, tag);
+            is_first = 0;
+        } else {
+            found_tag = 1;
+        }
+        tag = strtok(NULL, ",");
+    }
+
+    if (!found_tag) {
+        free(tags);
+        free(new_tags);
+        free(new_filename);
+        return NULL;
+    }
+
+    // Reconstruct the filename.
+    if (strlen(new_tags) > 0) {
+        // Still has other tags
+        snprintf(new_filename, MAX_FILENAME_LENGTH, "%.*s+%s+%s",
+                 (int)(start - original_filename), original_filename,
+                 new_tags,
+                 end + 1);
+    } else {
+        // No tags left, remove the tag wrapper completely.
+        snprintf(new_filename, MAX_FILENAME_LENGTH, "%.*s%s",
+                 (int)(start - original_filename), original_filename,
+                 end + 1);
+    }
+
+    free(tags);
+    free(new_tags);
+    return new_filename;
+}
+
+int
+rename_file_remove_tag(const char* old_path, const char* new_path)
+{
+    if (strcmp(old_path, new_path) == 0) {
+        return 0;
+    }
+
+    // Check if destination already exists.
+    if (access(new_path, F_OK) == 0) {
+        fprintf(stderr, "Destination file already exists: %s\n", new_path);
+        return -1;
+    }
+
+    if (rename(old_path, new_path) != 0) {
+        perror("Failed to rename file");
+        return -1;
+    }
+
+    return 0;
+}
+
+void
+remove_tag_from_files(const char* tag_to_remove, regex_t *regex, struct FileTuple *matches, const char* BASEDIR)
+{
+    int match_count = 0;
+    struct FileTuple **matches_ptr = &matches;
+    search_files(BASEDIR, regex, matches_ptr, &match_count);
+
+    int files_modified = 0;
+    int errors = 0;
+
+    for (int i = 0; i < match_count; i++) {
+        char* new_filename = create_new_filename(matches[i].filename, tag_to_remove);
+
+        if (new_filename) {
+            char old_path[MAX_PATH_LENGTH];
+            char new_path[MAX_PATH_LENGTH];
+
+            snprintf(old_path, sizeof(old_path), "%s/%s", matches[i].path, matches[i].filename);
+            snprintf(new_path, sizeof(new_path), "%s/%s", matches[i].path, new_filename);
+
+            if (rename_file_remove_tag(old_path, new_path) == 0) {
+                printf("Renamed: %s -> %s\n", matches[i].filename, new_filename);
+                files_modified++;
+            } else {
+                errors++;
+            }
+
+            free(new_filename);
+        }
+    }
+
+    printf("\nSummary:\n");
+    printf("Files processed: %d\n", match_count);
+    printf("Files modified: %d\n", files_modified);
+    if (errors > 0) {
+        printf("Errors encountered: %d\n", errors);
+    }
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -271,23 +427,27 @@ main(int argc, char *argv[])
         {"or", no_argument, 0, 'o'},
         {"list", no_argument, 0, 'l'},
         {"help", no_argument, 0, 'h'},
+        {"remove", required_argument, 0, 'r'},
         {0, 0, 0, 0}
     };
 
-    while ((opt = getopt_long(argc, argv, "olh", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "olhr:", long_options, NULL)) != -1) {
         switch (opt) {
         case 'o':
-            logical_and = 0; // Logical OR.
+            logical_and = 0;
             break;
         case 'l':
             list_tags(regex, matches, BASEDIR);
             return 0;
-            break;
         case 'h':
             fprintf(stderr, "Usage: %s [OPTIONS] [tag1 tag2 ... tagN]\n", argv[0]);
             fprintf(stderr, "  -o, --or          Use logical OR\n");
             fprintf(stderr, "  -l, --list        List tags\n");
+            fprintf(stderr, "  -r, --remove=TAG  Remove specified tag from files\n");
             fprintf(stderr, "  -h, --help        Show this help message\n");
+            return 0;
+        case 'r':
+            remove_tag_from_files(optarg, &regex, matches, BASEDIR);
             return 0;
         default:
             fprintf(stderr, "Invalid option. Use '%s --help' for usage information.\n", argv[0]);
